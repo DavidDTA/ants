@@ -1,4 +1,4 @@
-module Keyboard exposing (Msg, State, event, init, update)
+module Keyboard exposing (Msg, State, event, init, isPressed, update)
 
 import Json.Decode
 import Set exposing (Set)
@@ -51,3 +51,8 @@ event tag =
                     |> Json.Decode.map (\code -> msg { code = code })
             )
         |> Json.Decode.map tag
+
+
+isPressed : String -> State -> Bool
+isPressed code (Keyboard { pressed }) =
+    Set.member code pressed

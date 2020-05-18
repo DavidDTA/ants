@@ -13,7 +13,9 @@ import Html.Styled.Attributes
 import Html.Styled.Events
 import Json.Decode
 import Keyboard
+import Keyboard.KeyCode
 import Length
+import Pixels
 import Point2d
 import Quantity exposing (Quantity(..))
 import Svg.Styled
@@ -26,7 +28,6 @@ type Screen
     = Title
     | Gameplay
         { world : World.World
-        , topDown : Bool
         }
 
 
@@ -67,13 +68,24 @@ update msg model =
         StartGame ->
             case model.screen of
                 Title ->
-                    ( { model | screen = Gameplay { world = World.init, topDown = True } }, Cmd.none )
+                    ( { model | screen = Gameplay { world = World.init } }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         AnimationFrame frametime ->
-            ( { model | framerate = Framerate.update frametime model.framerate }, Cmd.none )
+            ( { model
+                | framerate = Framerate.update frametime model.framerate
+                , screen =
+                    case model.screen of
+                        Title ->
+                            model.screen
+
+                        Gameplay { world } ->
+                            Gameplay { world = World.doFrame frametime model.keyboard world }
+              }
+            , Cmd.none
+            )
 
         Keyboard keyboardMessage ->
             ( { model
@@ -140,7 +152,7 @@ viewDebugInfo { framerate, keyboard } =
         ]
 
 
-viewContents { screen } =
+viewContents { screen, keyboard } =
     case screen of
         Title ->
             Html.Styled.div
@@ -168,25 +180,22 @@ viewContents { screen } =
                 ]
 
         Gameplay gameplay ->
-            viewGameplay gameplay
+            viewGameplay keyboard gameplay
 
 
-viewGameplay ({ world } as model) =
+viewGameplay keyboard ({ world } as gameplay) =
     let
         allEntities =
             World.allEntities world
 
         ( viewportFrame, viewportLength ) =
-            viewport model
+            viewport keyboard gameplay
 
         viewBoxRadius =
             384
 
         scale =
             viewBoxRadius / Length.inCssPixels viewportLength
-
-        globalFrameRelative =
-            Frame2d.relativeTo viewportFrame Frame2d.atOrigin
     in
     Svg.Styled.svg
         [ Svg.Styled.Attributes.css
@@ -196,13 +205,13 @@ viewGameplay ({ world } as model) =
         , Svg.Styled.Attributes.viewBox (String.join " " (List.map String.fromInt [ -viewBoxRadius, -viewBoxRadius, 2 * viewBoxRadius, 2 * viewBoxRadius ]))
         ]
         [ Svg.Styled.g
-            [ Svg.Styled.Attributes.transform (placeInAndScale globalFrameRelative scale).value
+            [ Svg.Styled.Attributes.transform (placeWorldInViewport viewportFrame scale).value
             ]
             (allEntities
                 |> List.map
                     (\{ glyph, frame } ->
                         Svg.Styled.g
-                            [ Svg.Styled.Attributes.transform (placeIn frame).value ]
+                            [ Svg.Styled.Attributes.transform (placeEntityInWorld frame).value ]
                             [ viewEntity glyph
                             ]
                     )
@@ -213,11 +222,16 @@ viewGameplay ({ world } as model) =
 {-| Creates a css (or svg) transformation matrix which will put the image in the given frame.
 I used the source of ianmackenzie/elm-geometry-svg:Geometry.Svg.placeIn as a reference for calculating this matrix
 -}
-placeIn : Frame2d.Frame2d units coordinates defines -> Css.Transform {}
-placeIn frame =
+placeEntityInWorld : Frame2d.Frame2d Length.Meters World.WorldCoordinates { defines : World.EntityCoordinates } -> Css.Transform {}
+placeEntityInWorld frame =
     let
-        p =
-            Point2d.unwrap (Frame2d.originPoint frame)
+        px =
+            Point2d.xCoordinate (Frame2d.originPoint frame)
+                |> Length.inCssPixels
+
+        py =
+            Point2d.yCoordinate (Frame2d.originPoint frame)
+                |> Length.inCssPixels
 
         d1 =
             Direction2d.unwrap (Frame2d.xDirection frame)
@@ -225,25 +239,33 @@ placeIn frame =
         d2 =
             Direction2d.unwrap (Frame2d.yDirection frame)
     in
-    Css.matrix d1.x d1.y d2.x d2.y p.x p.y
+    Css.matrix d1.x d1.y d2.x d2.y px py
 
 
 {-| Creates a css (or svg) transformation matrix which will put the image in the given frame.
 I used the source of ianmackenzie/elm-geometry-svg:Geometry.Svg.placeIn as a reference for calculating this matrix
 -}
-placeInAndScale : Frame2d.Frame2d units coordinates defines -> Float -> Css.Transform {}
-placeInAndScale frame scale =
+placeWorldInViewport : Frame2d.Frame2d Length.Meters World.WorldCoordinates { defines : ViewportCoordinates } -> Float -> Css.Transform {}
+placeWorldInViewport frame scale =
     let
-        p =
-            Point2d.unwrap (Frame2d.originPoint frame)
+        globalFrameRelative =
+            Frame2d.relativeTo frame Frame2d.atOrigin
+
+        px =
+            Point2d.xCoordinate (Frame2d.originPoint globalFrameRelative)
+                |> Length.inCssPixels
+
+        py =
+            Point2d.yCoordinate (Frame2d.originPoint globalFrameRelative)
+                |> Length.inCssPixels
 
         d1 =
-            Direction2d.unwrap (Frame2d.xDirection frame)
+            Direction2d.unwrap (Frame2d.xDirection globalFrameRelative)
 
         d2 =
-            Direction2d.unwrap (Frame2d.yDirection frame)
+            Direction2d.unwrap (Frame2d.yDirection globalFrameRelative)
     in
-    Css.matrix (d1.x * scale) (d1.y * scale) (d2.x * scale) (d2.y * scale) (p.x * scale) (p.y * scale)
+    Css.matrix (d1.x * scale) (-d1.y * scale) (d2.x * scale) (-d2.y * scale) (px * scale) (-py * scale)
 
 
 viewEntity glyph =
@@ -292,9 +314,9 @@ viewGlyphAnt color =
         ]
 
 
-viewport : { a | world : World.World, topDown : Bool } -> ( Frame2d.Frame2d Length.Meters World.WorldCoordinates { defines : ViewportCoordinates }, Length.Length )
-viewport { world, topDown } =
-    if topDown then
+viewport : Keyboard.State -> { a | world : World.World } -> ( Frame2d.Frame2d Length.Meters World.WorldCoordinates { defines : ViewportCoordinates }, Length.Length )
+viewport keyboard { world } =
+    if Keyboard.isPressed Keyboard.KeyCode.space keyboard then
         globalFrame world
 
     else
@@ -305,6 +327,7 @@ viewport { world, topDown } =
             Just playerFrame ->
                 ( playerFrame
                     |> Frame2d.copy
+                    |> Frame2d.translateAlongOwn Frame2d.yAxis (Length.centimeters 2)
                 , Length.centimeters 3
                 )
 
