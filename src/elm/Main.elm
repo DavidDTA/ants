@@ -268,16 +268,67 @@ placeWorldInViewport frame scale =
     Css.matrix (d1.x * scale) (-d1.y * scale) (d2.x * scale) (-d2.y * scale) (px * scale) (-py * scale)
 
 
+anthillColor =
+    Css.rgb 200 130 100
+
+
 viewEntity glyph =
     case glyph of
         World.Anthill ->
-            Svg.Styled.circle
-                [ Svg.Styled.Attributes.css
-                    [ Css.Extra.r (Css.cm 1.75)
-                    , Css.Extra.stroke (Css.rgb 0 0 255)
+            Svg.Styled.g []
+                [ Svg.Styled.circle
+                    [ Svg.Styled.Attributes.css
+                        [ Css.Extra.r (Css.cm 1.75)
+                        , Css.Extra.stroke anthillColor
+                        ]
                     ]
+                    []
+                , Svg.Styled.circle
+                    [ Svg.Styled.Attributes.css
+                        [ Css.Extra.r (Css.cm 0.25)
+                        , Css.Extra.cx (Css.cm 0.1)
+                        , Css.Extra.cy (Css.cm -0.65)
+                        , Css.Extra.stroke anthillColor
+                        ]
+                    ]
+                    []
+                , Svg.Styled.circle
+                    [ Svg.Styled.Attributes.css
+                        [ Css.Extra.r (Css.cm 0.4)
+                        , Css.Extra.cx (Css.cm -0.3)
+                        , Css.Extra.cy (Css.cm 0.7)
+                        , Css.Extra.stroke anthillColor
+                        ]
+                    ]
+                    []
+                , Svg.Styled.circle
+                    [ Svg.Styled.Attributes.css
+                        [ Css.Extra.r (Css.cm 0.3)
+                        , Css.Extra.cx (Css.cm 0.3)
+                        , Css.Extra.cy (Css.cm 0.15)
+                        , Css.Extra.stroke anthillColor
+                        ]
+                    ]
+                    []
+                , Svg.Styled.circle
+                    [ Svg.Styled.Attributes.css
+                        [ Css.Extra.r (Css.cm 0.45)
+                        , Css.Extra.cx (Css.cm -0.6)
+                        , Css.Extra.cy (Css.cm -0.3)
+                        , Css.Extra.stroke anthillColor
+                        ]
+                    ]
+                    []
+                , Svg.Styled.circle
+                    [ Svg.Styled.Attributes.css
+                        [ Css.Extra.r (Css.cm 0.23)
+                        , Css.Extra.cx (Css.cm 0.8)
+                        , Css.Extra.cy (Css.cm -0.3)
+                        , Css.Extra.stroke anthillColor
+                        ]
+                    ]
+                    []
                 ]
-                []
 
         World.Ant ->
             viewGlyphAnt (Css.rgb 255 255 255)
@@ -290,8 +341,8 @@ viewGlyphAnt color =
     Svg.Styled.g []
         [ Svg.Styled.circle
             [ Svg.Styled.Attributes.css
-                [ Css.Extra.r (Css.mm 1)
-                , Css.Extra.cy (Css.mm 2)
+                [ Css.Extra.r (Css.mm 1.2)
+                , Css.Extra.cy (Css.mm 2.2)
                 , Css.Extra.stroke color
                 ]
             ]
@@ -305,8 +356,8 @@ viewGlyphAnt color =
             []
         , Svg.Styled.circle
             [ Svg.Styled.Attributes.css
-                [ Css.Extra.r (Css.mm 1)
-                , Css.Extra.cy (Css.mm -2)
+                [ Css.Extra.r (Css.mm 1.8)
+                , Css.Extra.cy (Css.mm -2.8)
                 , Css.Extra.stroke color
                 ]
             ]
